@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>JudgeJolt — Gemini PDF→Rubric + Devpost Scorer (No Build Tools)</title>
+<title>JudgeJolt — Gemini PDF→Rubric + Devpost Scorer</title>
 <style>
   :root {
     --bg: #0f1220; --card: #151933; --muted: #aab1d6; --text: #e8ebff;
@@ -68,11 +68,9 @@
   <section class="stack">
     <div class="card">
       <h2>Gemini Settings</h2>
-      <div class="row">
-        <input id="geminiKey" type="text" placeholder="Gemini API Key (required for PDF and scoring)" />
-        <input id="geminiModel" type="text" value="gemini-1.5-flash-latest" />
-      </div>
-      <div class="help">This runs in your browser. Use a temporary/restricted key and rotate after demos.</div>
+      <div class="help" style="margin-bottom:8px">API Key: Pre-configured and ready to use</div>
+      <input id="geminiModel" type="text" value="gemini-1.5-flash-latest" />
+      <div class="help">Using gemini-1.5-flash-latest for fast, accurate scoring</div>
     </div>
 
     <div class="card">
@@ -137,6 +135,12 @@
 </main>
 
 <script>
+// ===========================
+// CONFIGURATION - REPLACE WITH YOUR ACTUAL API KEY
+// ===========================
+const GEMINI_API_KEY = AIzaSyCrjez2kD946cNzf6FkK28Z8cjiQWbGeEs; // ← REPLACE THIS WITH YOUR ACTUAL GEMINI API KEY
+const DEFAULT_MODEL = "gemini-1.5-flash-latest";
+
 /** ===========================
  * Utilities
  * =========================== */
@@ -176,7 +180,8 @@ function geminiEndpoint(model, apiKey){
   return (method) => `${base}:${method}?key=${encodeURIComponent(apiKey)}`;
 }
 
-async function geminiGenerate({ apiKey, model, contents }){
+async function geminiGenerate({ model, contents }){
+  const apiKey = GEMINI_API_KEY;
   const url = geminiEndpoint(model, apiKey)("generateContent");
   const res = await fetch(url, {
     method: "POST",
@@ -209,7 +214,7 @@ function fileToBase64(file){
 /** ===========================
  * Extract rubric from PDF via Gemini
  * =========================== */
-async function extractRubricFromPdf(file, apiKey, model){
+async function extractRubricFromPdf(file, model){
   if(!file) throw new Error("Choose a PDF first.");
   if(file.size > 8 * 1024 * 1024) throw new Error("PDF too large (>8MB). Use a smaller rubric.");
   const base64 = await fileToBase64(file);
@@ -224,7 +229,7 @@ Weights must sum to ~1.0 (±0.02). Example:
     { inline_data: { mime_type: "application/pdf", data: base64 } }
   ];
 
-  const text = await geminiGenerate({ apiKey, model, contents: [{ parts }] });
+  const text = await geminiGenerate({ model, contents: [{ parts }] });
 
   // Try to find the first JSON array
   const match = text.match(/\[[\s\S]*\]$/) || text.match(/\[[\s\S]*\]/);
@@ -271,7 +276,7 @@ async function tryFetchDevpost(url){
 /** ===========================
  * Score with Gemini (rubric + project text)
  * =========================== */
-async function scoreWithGemini({ apiKey, model, rubric, projectText }){
+async function scoreWithGemini({ model, rubric, projectText }){
   if(!rubric?.length) throw new Error("Rubric JSON is empty.");
   if(!projectText?.trim()) throw new Error("Project text is empty.");
 
@@ -292,7 +297,7 @@ Rules:
     { text: "PROJECT DESCRIPTION:\n" + projectText }
   ];
 
-  const text = await geminiGenerate({ apiKey, model, contents: [{ parts }] });
+  const text = await geminiGenerate({ model, contents: [{ parts }] });
 
   // Extract trailing JSON or whole text
   const jsonMatch = text.match(/\{[\s\S]*\}$/) || text.match(/\{[\s\S]*\}/);
@@ -317,13 +322,14 @@ Rules:
 let lastCriteria = [];
 
 el("btnExtract").addEventListener("click", async () => {
-  const apiKey = el("geminiKey").value.trim();
-  const model = el("geminiModel").value.trim();
+  const model = el("geminiModel").value.trim() || DEFAULT_MODEL;
   const file = el("pdfInput").files?.[0];
   el("extractStatus").textContent = "Extracting rubric with Gemini…";
   try{
-    if(!apiKey) throw new Error("Provide your Gemini API key.");
-    const rubric = await extractRubricFromPdf(file, apiKey, model);
+    if(!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_API_KEY_HERE") {
+      throw new Error("Please set up the Gemini API key in the code first.");
+    }
+    const rubric = await extractRubricFromPdf(file, model);
     el("rubricJson").value = JSON.stringify(rubric, null, 2);
     el("extractStatus").textContent = `Parsed ${rubric.length} criteria.`;
   }catch(err){
@@ -339,20 +345,21 @@ el("btnFetchDevpost").addEventListener("click", async () => {
     el("projectText").value = text.slice(0, 50000); // keep it manageable
     el("devpostStatus").innerHTML = `<span class="ok">Fetched. Review & trim if needed.</span>`;
   }else{
-    el("devpostStatus").innerHTML = `<span class="error">Couldn’t fetch (likely CORS). Paste the project text below.</span>`;
+    el("devpostStatus").innerHTML = `<span class="error">Couldn't fetch (likely CORS). Paste the project text below.</span>`;
   }
 });
 
 el("btnScoreGemini").addEventListener("click", async () => {
-  const apiKey = el("geminiKey").value.trim();
-  const model = el("geminiModel").value.trim();
+  const model = el("geminiModel").value.trim() || DEFAULT_MODEL;
   const rubricRaw = el("rubricJson").value.trim();
   const project = el("projectText").value.trim();
   el("scoreStatus").textContent = "Scoring with Gemini…";
   try{
-    if(!apiKey) throw new Error("Provide your Gemini API key.");
+    if(!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_API_KEY_HERE") {
+      throw new Error("Please set up the Gemini API key in the code first.");
+    }
     const rubric = JSON.parse(rubricRaw);
-    const result = await scoreWithGemini({ apiKey, model, rubric, projectText: project });
+    const result = await scoreWithGemini({ model, rubric, projectText: project });
 
     lastCriteria = result.criteria;
     renderTable(lastCriteria);
@@ -382,12 +389,15 @@ el("btnExportCSV").addEventListener("click", () => {
 el("btnClear").addEventListener("click", () => { el("projectText").value = ""; });
 
 el("btnReset").addEventListener("click", () => {
-  el("geminiKey").value = ""; el("geminiModel").value = "gemini-1.5-flash-latest";
+  el("geminiModel").value = DEFAULT_MODEL;
   el("pdfInput").value = ""; el("rubricJson").value = ""; el("devpostUrl").value = ""; el("projectText").value = "";
   el("extractStatus").textContent = ""; el("devpostStatus").textContent = ""; el("scoreStatus").textContent = "";
   el("tableWrap").innerHTML = ""; el("totalScore").textContent = "—"; el("totalMeta").textContent = "";
   lastCriteria = [];
 });
+
+// Initialize
+el("geminiModel").value = DEFAULT_MODEL;
 </script>
 </body>
 </html>

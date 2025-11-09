@@ -3,486 +3,392 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>JudgeJolt — Offline Rubric Scorer (No Node/Build Tools)</title>
+<title>JudgeJolt — Gemini PDF→Rubric + Devpost Scorer (No Build Tools)</title>
 <style>
   :root {
-    --bg: #0f1220;
-    --card: #151933;
-    --muted: #aab1d6;
-    --text: #e8ebff;
-    --accent: #6aa6ff;
-    --accent-2: #8ef0d1;
-    --warn: #ffb86b;
-    --bad: #ff6b6b;
-    --good: #7CFC98;
-    --border: #2a2f55;
+    --bg: #0f1220; --card: #151933; --muted: #aab1d6; --text: #e8ebff;
+    --accent: #6aa6ff; --accent2: #8ef0d1; --border: #2a2f55; --bad:#ff6b6b; --ok:#7CFC98; --warn:#ffb86b;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
-    background: radial-gradient(1200px 800px at 20% 0%, #151933 20%, #0f1220 60%, #0b0e1c 100%);
+  *{box-sizing:border-box}
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#0b0e1c;color:var(--text)}
+  header{padding:20px 16px;text-align:center;border-bottom:1px solid var(--border);position:sticky;top:0;background:#0f1220a6;backdrop-filter:blur(6px)}
+  header h1{margin:0;font-size:22px} header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+  main{max-width:1100px;margin:24px auto 64px;padding:0 16px;display:grid;gap:16px;grid-template-columns:1.15fr 0.85fr}
+  .card{background:linear-gradient(180deg,#161a36,#131736);border:1px solid var(--border);border-radius:14px;padding:14px;box-shadow:0 8px 30px #05081766}
+  .card h2{margin:0 0 8px;font-size:16px}
+  .help{color:var(--muted);font-size:12px}
+  .stack{display:grid;gap:12px}
+  input[type="text"],input[type="url"],input[type="file"],textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#0e1330;color:var(--text);font-size:13px;outline:none}
+  textarea{min-height:140px;resize:vertical}
+  .row{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+  .rowButtons{display:flex;flex-wrap:wrap;gap:8px}
+  
+  .btn:hover{background:#0f1a4b} .btn:active{transform:translateY(1px)}
+  .btn.primary{background:linear-gradient(180deg,#1d49ff,#1138cc);border-color:#2448ff}
+  .btn.warn{background:linear-gradient(180deg,#ff9e5a,#ff8740);border-color:#ff9e5a;color:#1b0e00}
+  .tag{font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:999px;color:var(--muted);display:inline-block}
+    .btn {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #101639;
     color: var(--text);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
   }
-  header {
-    padding: 24px 16px; text-align: center; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; backdrop-filter: blur(6px); background: color-mix(in oklab, var(--bg) 80%, #000 20% / 40%);
-  }
-  header h1 { margin: 0; font-size: 24px; letter-spacing: 0.4px; }
-  header p  { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
-  main { max-width: 1100px; margin: 24px auto 64px; padding: 0 16px; display: grid; gap: 16px; grid-template-columns: 1.1fr 0.9fr; }
-  .stack { display: grid; gap: 12px; }
-  .card {
-    background: linear-gradient(180deg, color-mix(in oklab, var(--card), #000 5%), color-mix(in oklab, var(--card), #000 10%));
-    border: 1px solid var(--border); border-radius: 14px; padding: 14px;
-    box-shadow: 0 1px 0 #0005, 0 8px 30px #05081766;
-  }
-  .card h2 { margin: 0 0 8px; font-size: 16px; letter-spacing: 0.3px; }
-  .help { color: var(--muted); font-size: 12px; margin: 4px 0 10px; }
-  textarea, input[type="text"], input[type="number"] {
-    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
-    background: #0e1330; color: var(--text); font-size: 13px; outline: none;
-  }
-  textarea { min-height: 140px; resize: vertical; }
-  .row { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    border: 1px solid var(--border); padding: 10px 12px; border-radius: 10px;
-    background: #101639; color: var(--text); cursor: pointer; font-weight: 600; font-size: 13px;
-    transition: transform .05s ease, background .2s ease, border-color .2s ease;
-  }
-  .btn:hover { background: #0f1a4b; }
-  .btn:active { transform: translateY(1px); }
-  .btn.primary { background: linear-gradient(180deg, #1d49ff, #1138cc); border-color: #2448ff; }
-  .btn.ghost { background: transparent; }
-  .btn.warn { background: linear-gradient(180deg, #ff9e5a, #ff8740); border-color: #ff9e5a; color: #1d0f00; }
-  .rowButtons { display: flex; flex-wrap: wrap; gap: 10px; }
-  .kvs { display: grid; gap: 8px; }
-  .kvs div { display: grid; grid-template-columns: 1.2fr 0.8fr 0.7fr auto; gap: 8px; align-items: center; }
-  .tag { font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); }
+
   .score {
-      font-size: 36px; font-weight: 800; letter-spacing: 0.5px; margin: 4px 0;
-      background: linear-gradient(90deg, var(--accent), var(--accent-2));
-      background-clip: text; /* standard property */
-      -webkit-background-clip: text; /* vendor-prefixed for better Safari support */
-      -webkit-text-fill-color: transparent; /* Safari needs this to render text transparent */
-      color: transparent;
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    background-clip: text; /* standard property */
+    -webkit-background-clip: text; /* Safari / older WebKit */
+    -webkit-text-fill-color: transparent; /* Safari needs this to render transparent text */
+    color: transparent;
+    margin: 4px 0;
   }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { font-size: 13px; padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; }
-  th { color: var(--muted); font-weight: 600; }
-  .right { text-align: right; }
-  .muted { color: var(--muted); }
-  footer { max-width: 1100px; margin: 24px auto 64px; padding: 0 16px; color: var(--muted); font-size: 12px; }
-  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #10223f; color: var(--accent); border: 1px solid #1d3f6e; font-weight: 600; font-size: 11px; }
-  .error { color: var(--bad); font-size: 12px; }
-  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  table{width:100%;border-collapse:collapse} th,td{padding:8px 6px;border-bottom:1px solid var(--border);font-size:13px;text-align:left}
+  th{color:var(--muted)} .right{text-align:right} .muted{color:var(--muted)}
+  .error{color:var(--bad);font-size:12px} .ok{color:var(--ok);font-size:12px}
+  @media (max-width:980px){main{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-  <header>
-    <h1>JudgeJolt ⚡ — Local Rubric Scorer</h1>
-    <p>No build tools. No extensions. Just open this file and score projects offline.</p>
-  </header>
+<header>
+  <h1>JudgeJolt ⚡ — Gemini-powered Rubric & Devpost Scorer</h1>
+  <p>Upload a rubric PDF → extract with Gemini → score a Devpost project. No Node. No extensions.</p>
+</header>
 
-  <main>
-    <!-- LEFT COLUMN -->
-    <section class="stack">
-      <div class="card">
-        <h2>Rubric</h2>
-        <p class="help">Paste CSV or JSON. <span class="pill">CSV format</span> <code>criterion,weight,max</code> per line. Example:<br>
-          <span class="muted">Impact,0.35,10</span><br><span class="muted">Technical Depth,0.40,10</span><br><span class="muted">Design & UX,0.25,10</span>
-        </p>
-        <textarea id="rubricInput" placeholder="Impact,0.35,10
-Technical Depth,0.40,10
-Design &amp; UX,0.25,10"></textarea>
-        <div class="rowButtons" style="margin-top:8px;">
-          <button class="btn" id="btnLoadSample">Load sample</button>
-          <button class="btn" id="btnParseRubric">Parse rubric</button>
-          <span id="rubricStatus" class="muted"></span>
-        </div>
+<main>
+  <!-- LEFT -->
+  <section class="stack">
+    <div class="card">
+      <h2>Gemini Settings</h2>
+      <div class="row">
+        <input id="geminiKey" type="text" placeholder="Gemini API Key (required for PDF and scoring)" />
+        <input id="geminiModel" type="text" value="gemini-1.5-flash-latest" />
       </div>
+      <div class="help">This runs in your browser. Use a temporary/restricted key and rotate after demos.</div>
+    </div>
 
-      <div class="card">
-        <h2>Project Description</h2>
-        <p class="help">Paste the project text here (copy from Devpost or notes). The local scorer will use keyword/semantic heuristics.</p>
-        <textarea id="projectText" placeholder="Paste project description here..."></textarea>
-        <div class="row" style="margin-top:8px;">
-          <div class="rowButtons">
-            <button class="btn primary" id="btnScoreLocal">Score locally</button>
-            <button class="btn ghost" id="btnClearProject">Clear</button>
-          </div>
-          <div style="text-align:right;">
-            <label style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
-              <input type="checkbox" id="useGemini" />
-              <span class="tag">Experimental: Use Gemini</span>
-            </label>
-          </div>
-        </div>
-        <div id="geminiPanel" style="display:none; margin-top:10px;">
-          <div class="row">
-            <input type="text" id="geminiKey" placeholder="Gemini API Key (optional; exposes key in browser!)" />
-            <input type="text" id="geminiModel" value="gemini-1.5-flash-latest" />
-          </div>
-          <div class="help">
-            <span class="warn tag" style="background:#3b1b10;color:#ff9e7a;border-color:#6a2a16;">Heads-up</span>
-            Calling Gemini from the browser exposes your API key and may be blocked by CORS. If it fails, the app will fall back to local scoring.
-          </div>
-          <button class="btn" id="btnScoreGemini">Try Gemini scoring</button>
-          <div id="geminiError" class="error" style="margin-top:6px;"></div>
-        </div>
+    <div class="card">
+      <h2>Rubric (PDF → JSON via Gemini)</h2>
+      <div class="row">
+        <input id="pdfInput" type="file" accept="application/pdf" />
+        <button class="btn" id="btnExtract">Extract rubric with Gemini</button>
       </div>
-
-      <div class="card">
-        <h2>Export</h2>
-        <p class="help">Download a CSV with criterion-level scores and the weighted total.</p>
-        <div class="rowButtons">
-          <button class="btn" id="btnExportCSV">Export CSV</button>
-          <button class="btn ghost" id="btnReset">Reset all</button>
-        </div>
+      <div class="help" style="margin-top:8px">
+        Gemini will parse your PDF into: <code>[{"name":"Impact","weight":0.35,"max":10}, ...]</code><br/>
+        You can edit the extracted JSON below if needed.
       </div>
-    </section>
+      <textarea id="rubricJson" placeholder='[{"name":"Impact","weight":0.35,"max":10}]'></textarea>
+      <div id="extractStatus" class="muted"></div>
+    </div>
 
-    <!-- RIGHT COLUMN -->
-    <section class="stack">
-      <div class="card">
-        <h2>Results</h2>
-        <div class="help">After scoring, youll see a breakdown here.</div>
-        <div class="score" id="totalScore">—</div>
-        <div class="muted" id="totalMeta"></div>
-        <div id="tableWrap" style="margin-top:10px;"></div>
+    <div class="card">
+      <h2>Project (Devpost)</h2>
+      <input id="devpostUrl" type="url" placeholder="https://devpost.com/software/your-project" />
+      <div class="rowButtons" style="margin-top:8px">
+        <button class="btn" id="btnFetchDevpost">Try to fetch Devpost page</button>
+        <span class="tag">Note: CORS may block in browsers</span>
       </div>
-
-      <div class="card">
-        <h2>How local scoring works</h2>
-        <ul class="help" style="margin:0; padding-left:18px;">
-          <li>Parses your rubric (CSV or JSON).</li>
-          <li>Heuristics map wording in your criteria to signals in the project text (e.g., mentions of models, APIs, datasets, UX terms).</li>
-          <li>Each criterion gets a normalized score in [0, max], multiplied by its weight. You always see the raw per-criterion output.</li>
-          <li>You can adjust rubric weights and re-score instantly.</li>
-        </ul>
+      <div id="devpostStatus" class="muted" style="margin-top:6px"></div>
+      <div class="help" style="margin-top:10px">If fetch fails, paste the Devpost text below:</div>
+      <textarea id="projectText" placeholder="Paste project description here..."></textarea>
+      <div class="rowButtons" style="margin-top:8px">
+        <button class="btn primary" id="btnScoreGemini">Score with Gemini</button>
+        <button class="btn" id="btnClear">Clear</button>
       </div>
+      <div id="scoreStatus" class="muted" style="margin-top:6px"></div>
+    </div>
 
-      <div class="card">
-        <h2>Tips</h2>
-        <div class="help">
-          For hackathons: keep criteria simple (Impact, Technical Depth, Novelty, Design/UX, Presentation). Weights should add to 1.0.
-        </div>
+    <div class="card">
+      <h2>Export</h2>
+      <div class="rowButtons">
+        <button class="btn" id="btnExportCSV">Export CSV</button>
+        <button class="btn warn" id="btnReset">Reset All</button>
       </div>
-    </section>
-  </main>
+    </div>
+  </section>
 
-  <footer>
-    Built for quick judging without any build tools. Optional Gemini scoring is here if you *really* want it, but local scoring works offline.
-  </footer>
+  <!-- RIGHT -->
+  <section class="stack">
+    <div class="card">
+      <h2>Results</h2>
+      <div class="help">Weighted total and criterion breakdown from Gemini.</div>
+      <div class="score" id="totalScore">—</div>
+      <div class="muted" id="totalMeta"></div>
+      <div id="tableWrap" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>How it works</h2>
+      <ul class="help" style="margin:0;padding-left:18px">
+        <li>PDF is sent to Gemini inline (base64) to extract rubric JSON.</li>
+        <li>Devpost: app tries to fetch HTML. If blocked, paste text.</li>
+        <li>Scoring: sends rubric + project text to Gemini, returns JSON (criteria, reasons, total).</li>
+      </ul>
+    </div>
+  </section>
+</main>
 
 <script>
 /** ===========================
- *  Minimal State
- *  =========================== */
-let rubric = [];    // [{name, weight, max}]
-let lastScores = []; // per-criterion breakdown from last run
-
-/** ===========================
- *  Helpers
- *  =========================== */
-function el(id){ return document.getElementById(id); }
-
-function parseRubric(text){
-  text = (text || "").trim();
-  if(!text) throw new Error("Rubric is empty");
-
-  // Try JSON first
-  try {
-    const data = JSON.parse(text);
-    if(!Array.isArray(data)) throw new Error("Rubric JSON must be an array");
-    return data.map((r, i) => {
-      if(!r.name || typeof r.weight !== 'number' || typeof r.max !== 'number'){
-        throw new Error(`Invalid rubric item at index ${i}. Required keys: name, weight (number), max (number).`);
-      }
-      return { name: String(r.name), weight: Number(r.weight), max: Number(r.max) };
-    });
-  } catch(_jsonErr){
-    // CSV fallback
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const out = [];
-    for(const line of lines){
-      const parts = line.split(",").map(s => s.trim());
-      if(parts.length < 3) throw new Error("CSV line must be: name,weight,max");
-      const name = parts[0];
-      const weight = Number(parts[1]);
-      const max = Number(parts[2]);
-      if(!name || Number.isNaN(weight) || Number.isNaN(max)) throw new Error("Bad CSV values. Example: Impact,0.35,10");
-      out.push({ name, weight, max });
-    }
-    return out;
-  }
-}
-
-function weightsSumOk(r){
-  const sum = r.reduce((a,c)=>a + c.weight, 0);
-  return { sum, ok: Math.abs(sum - 1.0) < 1e-6 };
-}
+ * Utilities
+ * =========================== */
+const el = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function fmt(n){ return (Math.round(n*100)/100).toFixed(2) }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&gt;','"':'&quot;',"'":'&#39;'}[c]) ) }
 
 function renderTable(breakdown){
   const wrap = el("tableWrap");
-  if(!breakdown || !breakdown.length){
-    wrap.innerHTML = "";
-    return;
-  }
+  if(!breakdown?.length){ wrap.innerHTML = ""; return; }
   const rows = breakdown.map(b => `
     <tr>
       <td>${escapeHtml(b.name)}</td>
       <td class="right">${fmt(b.max)}</td>
-      <td class="right">${fmt(b.raw)}</td>
+      <td class="right">${fmt(b.score)}</td>
       <td class="right">${fmt(b.weight)}</td>
-      <td class="right">${fmt(b.weighted)}</td>
-      <td class="muted">${b.reason || ""}</td>
+      <td class="right">${fmt(b.score * b.weight)}</td>
+      <td class="muted">${escapeHtml(b.reason || "")}</td>
     </tr>
   `).join("");
   wrap.innerHTML = `
     <table>
       <thead>
-        <tr>
-          <th>Criterion</th><th class="right">Max</th><th class="right">Raw</th><th class="right">Weight</th><th class="right">Weighted</th><th>Notes</th>
-        </tr>
+        <tr><th>Criterion</th><th class="right">Max</th><th class="right">Score</th><th class="right">Weight</th><th class="right">Weighted</th><th>Notes</th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
   `;
 }
 
-function fmt(n){
-  if(typeof n!=="number" || Number.isNaN(n)) return "—";
-  return (Math.round(n*100)/100).toFixed(2);
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
 /** ===========================
- *  Local Heuristic Scoring
- *  =========================== */
-const lexicons = {
-  technical: [
-    /llm|model|transformer|bert|gpt|gemini|embedding/i,
-    /fine-?tune|distill|quantize|rag|vector db|pinecone|chroma/i,
-    /api|sdk|webhook|oauth|jwt|grpc/i,
-    /dataset|benchmark|f1|auc|precision|recall|latency|throughput/i,
-    /cloud|docker|kubernetes|k8s|gcp|aws|azure/i,
-    /solana|smart contract|snowflake|sql|etl|pipeline/i
-  ],
-  design: [
-    /ux|ui|user research|interview|persona|journey map/i,
-    /wireframe|prototype|figma|usability|a11y|accessible|aria/i,
-    /responsive|mobile-first|animation|microinteraction/i
-  ],
-  impact: [
-    /ocean|environment|sustainab|climate|carbon|plastic|recycle|coast|marine/i,
-    /health|education|access|privacy|safety|inclusion|disaster/i,
-    /open source|community|nonprofit|ngo|volunteer/i
-  ],
-  novelty: [
-    /first|novel|unique|innovative|original|new approach|never/i,
-    /multi-?modal|on-device|edge|federated|explainable/i
-  ],
-  presentation: [
-    /demo|live|video|slides|pitch|devpost|screenshots|gif/i,
-    /docs|readme|diagram|architecture|walkthrough/i
-  ],
-};
-
-function signalScore(text, patterns){
-  let hits = 0;
-  for(const p of patterns){ if(p.test(text)) hits++; }
-  return hits / Math.max(1, patterns.length); // 0..1
+ * Gemini API helpers (browser)
+ * =========================== */
+function geminiEndpoint(model, apiKey){
+  const base = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}`;
+  return (method) => `${base}:${method}?key=${encodeURIComponent(apiKey)}`;
 }
 
-// crude mapping from rubric name -> which lexicon to bias
-function pickLexicon(name){
-  const s = name.toLowerCase();
-  if(s.includes("tech")) return "technical";
-  if(s.includes("design") || s.includes("ux") || s.includes("ui")) return "design";
-  if(s.includes("impact")) return "impact";
-  if(s.includes("novel")) return "novelty";
-  if(s.includes("present") || s.includes("docs")) return "presentation";
-  // default: blend all
-  return null;
-}
-
-function scoreLocally(project, rubric){
-  const text = (project || "").toLowerCase();
-  const results = [];
-  for(const r of rubric){
-    const key = pickLexicon(r.name);
-    let base = 0.4; // base for any coherent writeup
-    if(key){
-      base = 0.2 + 0.8 * signalScore(text, lexicons[key]);
-    } else {
-      // blend across categories
-      const vals = Object.values(lexicons).map(list => signalScore(text, list));
-      base = 0.2 + 0.8 * (vals.reduce((a,c)=>a+c,0)/vals.length);
-    }
-    const raw = Math.max(0, Math.min(r.max, base * r.max));
-    const weighted = raw * r.weight;
-    results.push({
-      name: r.name, max: r.max, raw, weight: r.weight, weighted,
-      reason: key ? `Signal in "${key}" = ${fmt(raw)}/${fmt(r.max)}` : "Mixed-signal blend"
-    });
-  }
-  const total = results.reduce((a,c)=>a + c.weighted, 0);
-  return { total, breakdown: results };
-}
-
-/** ===========================
- *  Optional: Gemini scoring (browser fetch, may be blocked)
- *  =========================== */
-async function scoreWithGemini(project, rubric, apiKey, model){
-  const prompt = {
-    contents: [{
-      parts: [{
-        text:
-`You are a strict hackathon judge. Given a RUBRIC and a PROJECT DESCRIPTION, return JSON ONLY:
-{"criteria":[{"name":"...", "max":10, "weight":0.35, "score":7.5, "reason":"..."}], "total": 8.1}
-
-Rules:
-- Respect each criterion's max and weight.
-- Score "score" in [0, max].
-- "total" must be the weighted sum (Σ(score/max * max) * weight is just Σ(score*weight)).
-- Keep reasons short (≤18 words).`
-      },{
-        text: `RUBRIC:\n${JSON.stringify(rubric, null, 2)}\n\nPROJECT DESCRIPTION:\n${project}`
-      }]
-    }]
-  };
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
+async function geminiGenerate({ apiKey, model, contents }){
+  const url = geminiEndpoint(model, apiKey)("generateContent");
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(prompt)
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ contents })
   });
-
   if(!res.ok){
-    let t = await res.text().catch(()=> "");
-    throw new Error(`Gemini HTTP ${res.status}: ${t.slice(0,200)}`);
+    const t = await res.text().catch(()=> "");
+    throw new Error(`Gemini HTTP ${res.status}: ${t.slice(0,300)}`);
   }
-
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join("") || "";
-  const jsonMatch = text.match(/\{[\s\S]*\}$/); // try to extract trailing JSON
-  const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+  return text;
+}
 
-  // normalize into our breakdown shape
-  const breakdown = (parsed.criteria || []).map(c => ({
-    name: c.name, max: Number(c.max), raw: Number(c.score),
-    weight: Number(c.weight), weighted: Number(c.score) * Number(c.weight),
-    reason: c.reason || ""
-  }));
-  const total = breakdown.reduce((a,c)=>a + c.weighted, 0);
-  return { total, breakdown };
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const base64 = btoa(
+        new Uint8Array(r.result).reduce((acc, b) => acc + String.fromCharCode(b), "")
+      );
+      resolve(base64);
+    };
+    r.onerror = () => reject(r.error);
+    r.readAsArrayBuffer(file);
+  });
 }
 
 /** ===========================
- *  UI Wiring
- *  =========================== */
-function updateResultsView(result){
-  lastScores = result.breakdown;
-  renderTable(result.breakdown);
-  el("totalScore").textContent = isFinite(result.total) ? fmt(result.total) : "—";
-  const { sum, ok } = weightsSumOk(rubric);
-  el("totalMeta").textContent = ok
-    ? `Weights sum: ${sum.toFixed(2)} (OK)`
-    : `Weights sum: ${sum.toFixed(2)} (does not equal 1.00)`;
+ * Extract rubric from PDF via Gemini
+ * =========================== */
+async function extractRubricFromPdf(file, apiKey, model){
+  if(!file) throw new Error("Choose a PDF first.");
+  if(file.size > 8 * 1024 * 1024) throw new Error("PDF too large (>8MB). Use a smaller rubric.");
+  const base64 = await fileToBase64(file);
+
+  const system = `You are an expert judge. Extract a concise RUBRIC JSON from the attached PDF.
+Return ONLY valid JSON, no backticks. Fields: name (string), weight (number 0..1), max (number >0).
+Weights must sum to ~1.0 (±0.02). Example:
+[{"name":"Impact","weight":0.35,"max":10},{"name":"Technical Depth","weight":0.4,"max":10},{"name":"Design & UX","weight":0.25,"max":10}]`;
+
+  const parts = [
+    { text: system },
+    { inline_data: { mime_type: "application/pdf", data: base64 } }
+  ];
+
+  const text = await geminiGenerate({ apiKey, model, contents: [{ parts }] });
+
+  // Try to find the first JSON array
+  const match = text.match(/\[[\s\S]*\]$/) || text.match(/\[[\s\S]*\]/);
+  const jsonStr = match ? match[0] : text.trim();
+  let rubric = JSON.parse(jsonStr);
+
+  if(!Array.isArray(rubric)) throw new Error("Gemini did not return an array.");
+  // Basic normalization
+  rubric = rubric.map((r,i) => {
+    if(!r.name || typeof r.weight !== "number" || typeof r.max !== "number"){
+      throw new Error(`Bad rubric item at index ${i}`);
+    }
+    return { name: String(r.name), weight: Number(r.weight), max: Number(r.max) };
+  });
+
+  // Normalize weight sum to 1.0 if slightly off
+  const sum = rubric.reduce((a,c)=>a+c.weight,0);
+  if(Math.abs(sum - 1.0) > 0.02){
+    rubric = rubric.map(r => ({...r, weight: r.weight / sum}));
+  }
+  return rubric;
 }
 
-el("btnLoadSample").addEventListener("click", () => {
-  el("rubricInput").value = `Impact,0.35,10
-Technical Depth,0.40,10
-Design & UX,0.25,10`;
-});
-
-el("btnParseRubric").addEventListener("click", () => {
+/** ===========================
+ * Devpost fetch (best-effort; CORS often blocks)
+ * =========================== */
+async function tryFetchDevpost(url){
   try{
-    rubric = parseRubric(el("rubricInput").value);
-    const { sum, ok } = weightsSumOk(rubric);
-    el("rubricStatus").textContent = ok
-      ? `Parsed ${rubric.length} items. Weights sum: ${sum.toFixed(2)}`
-      : `Parsed ${rubric.length}. Weights sum is ${sum.toFixed(2)} (should be 1.00)`;
+    const res = await fetch(url, { mode: "cors" });
+    // If CORS blocks, browsers may throw or produce opaque body; try text:
+    const html = await res.text();
+    // Make a transient DOM to extract readable text:
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    // Devpost content tends to be in #app or main sections; fallback to body text:
+    const main = doc.querySelector('main, #app, .software-show, .content, body');
+    const text = main ? main.innerText : doc.body.innerText;
+    return text.trim().replace(/\n{3,}/g, "\n\n");
+  }catch(e){
+    // Most likely CORS or network; return null to trigger paste fallback
+    return null;
+  }
+}
+
+/** ===========================
+ * Score with Gemini (rubric + project text)
+ * =========================== */
+async function scoreWithGemini({ apiKey, model, rubric, projectText }){
+  if(!rubric?.length) throw new Error("Rubric JSON is empty.");
+  if(!projectText?.trim()) throw new Error("Project text is empty.");
+
+  const system = `You are a strict hackathon judge. Given a RUBRIC and a PROJECT DESCRIPTION, return JSON ONLY:
+{
+  "criteria":[{"name":"...", "max":10, "weight":0.35, "score":7.5, "reason":"..."}],
+  "total": 8.1
+}
+Rules:
+- Respect each criterion's max and weight exactly as provided.
+- Score "score" in [0, max].
+- "total" is Σ(score * weight) (two decimals ok).
+- Reasons: concise (≤18 words), criterion-specific.`;
+
+  const parts = [
+    { text: system },
+    { text: "RUBRIC:\n" + JSON.stringify(rubric, null, 2) },
+    { text: "PROJECT DESCRIPTION:\n" + projectText }
+  ];
+
+  const text = await geminiGenerate({ apiKey, model, contents: [{ parts }] });
+
+  // Extract trailing JSON or whole text
+  const jsonMatch = text.match(/\{[\s\S]*\}$/) || text.match(/\{[\s\S]*\}/);
+  const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text.trim());
+
+  // Normalize
+  const crit = (parsed.criteria || []).map(c => ({
+    name: c.name,
+    max: Number(c.max),
+    weight: Number(c.weight),
+    score: Math.max(0, Math.min(Number(c.max), Number(c.score))),
+    reason: c.reason || ""
+  }));
+  const total = crit.reduce((a,c)=> a + (c.score * c.weight), 0);
+
+  return { criteria: crit, total };
+}
+
+/** ===========================
+ * UI wiring
+ * =========================== */
+let lastCriteria = [];
+
+el("btnExtract").addEventListener("click", async () => {
+  const apiKey = el("geminiKey").value.trim();
+  const model = el("geminiModel").value.trim();
+  const file = el("pdfInput").files?.[0];
+  el("extractStatus").textContent = "Extracting rubric with Gemini…";
+  try{
+    if(!apiKey) throw new Error("Provide your Gemini API key.");
+    const rubric = await extractRubricFromPdf(file, apiKey, model);
+    el("rubricJson").value = JSON.stringify(rubric, null, 2);
+    el("extractStatus").textContent = `Parsed ${rubric.length} criteria.`;
   }catch(err){
-    el("rubricStatus").textContent = err.message;
+    el("extractStatus").textContent = err.message;
   }
 });
 
-el("btnScoreLocal").addEventListener("click", () => {
-  try{
-    if(!rubric.length) rubric = parseRubric(el("rubricInput").value);
-    const project = el("projectText").value.trim();
-    const result = scoreLocally(project, rubric);
-    updateResultsView(result);
-  }catch(err){
-    alert("Error: " + err.message);
+el("btnFetchDevpost").addEventListener("click", async () => {
+  const url = el("devpostUrl").value.trim();
+  el("devpostStatus").textContent = "Fetching Devpost…";
+  const text = await tryFetchDevpost(url);
+  if(text){
+    el("projectText").value = text.slice(0, 50000); // keep it manageable
+    el("devpostStatus").innerHTML = `<span class="ok">Fetched. Review & trim if needed.</span>`;
+  }else{
+    el("devpostStatus").innerHTML = `<span class="error">Couldn’t fetch (likely CORS). Paste the project text below.</span>`;
   }
-});
-
-el("btnClearProject").addEventListener("click", () => {
-  el("projectText").value = "";
-});
-
-el("useGemini").addEventListener("change", (e) => {
-  el("geminiPanel").style.display = e.target.checked ? "block" : "none";
 });
 
 el("btnScoreGemini").addEventListener("click", async () => {
-  el("geminiError").textContent = "";
+  const apiKey = el("geminiKey").value.trim();
+  const model = el("geminiModel").value.trim();
+  const rubricRaw = el("rubricJson").value.trim();
+  const project = el("projectText").value.trim();
+  el("scoreStatus").textContent = "Scoring with Gemini…";
   try{
-    if(!rubric.length) rubric = parseRubric(el("rubricInput").value);
-    const project = el("projectText").value.trim();
-    const key = el("geminiKey").value.trim();
-    const model = el("geminiModel").value.trim();
-    if(!key) throw new Error("Provide a Gemini API key or use Local Scoring instead.");
+    if(!apiKey) throw new Error("Provide your Gemini API key.");
+    const rubric = JSON.parse(rubricRaw);
+    const result = await scoreWithGemini({ apiKey, model, rubric, projectText: project });
 
-    const result = await scoreWithGemini(project, rubric, key, model);
-    updateResultsView(result);
+    lastCriteria = result.criteria;
+    renderTable(lastCriteria);
+
+    el("totalScore").textContent = fmt(result.total);
+    const sumW = rubric.reduce((a,c)=>a + Number(c.weight||0), 0);
+    el("totalMeta").textContent = `Weights sum: ${fmt(sumW)} | Criteria: ${lastCriteria.length}`;
+    el("scoreStatus").textContent = "Done.";
   }catch(err){
-    el("geminiError").textContent = err.message + " — Falling back to local scoring might work better.";
+    el("scoreStatus").textContent = err.message;
   }
 });
 
 el("btnExportCSV").addEventListener("click", () => {
-  if(!lastScores.length){ alert("Nothing to export yet. Score something first."); return; }
-  const head = ["Criterion","Max","Raw","Weight","Weighted","Reason"];
-  const rows = lastScores.map(r => [
-    r.name, r.max, r.raw, r.weight, r.weighted, (r.reason || "").replace(/\n/g," ")
-  ]);
-  const total = lastScores.reduce((a,c)=>a+c.weighted,0);
+  if(!lastCriteria?.length){ alert("Nothing to export yet."); return; }
+  const head = ["Criterion","Max","Score","Weight","Weighted","Reason"];
+  const rows = lastCriteria.map(r => [r.name, r.max, r.score, r.weight, r.score*r.weight, (r.reason||"").replace(/\n/g," ")]);
+  const total = lastCriteria.reduce((a,c)=>a + c.score*c.weight, 0);
   rows.push(["TOTAL","","","", total, ""]);
-
-  // simple CSV
   const csv = [head, ...rows].map(arr => arr.map(cell=>{
-    const s = String(cell);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    const s = String(cell); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
   }).join(",")).join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = "judgejolt_scores.csv"; a.click();
-  URL.revokeObjectURL(url);
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"}); const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = "judgejolt_scores.csv"; a.click(); URL.revokeObjectURL(url);
 });
 
+el("btnClear").addEventListener("click", () => { el("projectText").value = ""; });
+
 el("btnReset").addEventListener("click", () => {
-  rubric = []; lastScores = [];
-  el("rubricInput").value = "";
-  el("projectText").value = "";
-  el("rubricStatus").textContent = "";
-  el("geminiKey").value = "";
-  el("geminiError").textContent = "";
-  el("tableWrap").innerHTML = "";
-  el("totalScore").textContent = "—";
-  el("totalMeta").textContent = "";
+  el("geminiKey").value = ""; el("geminiModel").value = "gemini-1.5-flash-latest";
+  el("pdfInput").value = ""; el("rubricJson").value = ""; el("devpostUrl").value = ""; el("projectText").value = "";
+  el("extractStatus").textContent = ""; el("devpostStatus").textContent = ""; el("scoreStatus").textContent = "";
+  el("tableWrap").innerHTML = ""; el("totalScore").textContent = "—"; el("totalMeta").textContent = "";
+  lastCriteria = [];
 });
 </script>
 </body>
 </html>
+

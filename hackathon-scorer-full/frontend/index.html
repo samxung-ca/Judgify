@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hackathon Scorer — Devpost + PDF Rubric → Gemini</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="container">
+    <h1>Hackathon Scorer</h1>
+    <p class="muted">Paste a Devpost gallery link, upload a rubric PDF, and score all projects with Gemini.</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>1) Devpost Gallery</h2>
+      <label class="field">
+        <span>Gallery URL</span>
+        <input id="galleryUrl" type="url" placeholder="https://hackathon-name.devpost.com/project-gallery" />
+      </label>
+      <div class="row">
+        <button id="fetchProjectsBtn" class="btn">Fetch projects</button>
+        <span class="muted small">We scrape server‑side to avoid CORS.</span>
+      </div>
+      <div id="projectsStatus" class="muted small"></div>
+      <div id="projectsList" class="list"></div>
+    </section>
+
+    <section class="card">
+      <h2>2) Rubric (PDF)</h2>
+      <label class="field">
+        <span>Upload rubric PDF</span>
+        <input id="rubricFile" type="file" accept="application/pdf" />
+      </label>
+      <div class="row">
+        <button id="parseRubricBtn" class="btn secondary">Parse rubric with Gemini</button>
+        <label class="field" style="max-width: 240px;">
+          <span>Model</span>
+          <select id="model">
+            <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+          </select>
+        </label>
+      </div>
+      <div id="rubricStatus" class="muted small"></div>
+      <div id="rubricPreview" class="list"></div>
+    </section>
+
+    <section class="card">
+      <h2>3) Scoreboard</h2>
+      <div class="row">
+        <button id="scoreAllBtn" class="btn">Score all projects</button>
+        <label class="check">
+          <input id="autoRerun" type="checkbox" checked />
+          <span>Re-run scoring automatically on reload</span>
+        </label>
+      </div>
+      <div id="scoreStatus" class="muted small"></div>
+      <div id="scoreboard"></div>
+    </section>
+  </main>
+
+  <footer class="container muted small">
+    <p>Backend stores no keys, set <code>GEMINI_API_KEY</code> in backend <code>.env</code>. This is a local demo.</p>
+  </footer>
+
+  <script>
+    window.__API_BASE__ = "http://localhost:5175"; // change if you bind server elsewhere
+  </script>
+  <script src="./app.js"></script>
+</body>
+</html>

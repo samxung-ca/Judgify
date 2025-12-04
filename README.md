@@ -1,6 +1,6 @@
 # Judgify
 ## Inspiration
-If low on judges, or in need of a quick, fast and efficient overview of projects, judgify is your extra judge. 
+If low on judges, or in need of a quick, fast and efficient overview of projects, judgify is your extra judge :). 
 
 ## What it does
 Judgify is a program that optimizes your hackathon judging process; import rubric of your choosing, and add projects with just one click, using your hackathon's devpost gallery link submission. It looks at submission descriptions per submission, and ranks them using your submitted criteria. You can find the mark breakdown and rubric weights below the rankings. 

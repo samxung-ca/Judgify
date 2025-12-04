@@ -1,4 +1,5 @@
 # Judgify
+
 ## Inspiration
 If low on judges, or in need of a quick, fast and efficient overview of projects, judgify is your extra judge :). 
 
@@ -15,3 +16,5 @@ All of it was amazing to accomplish in a day. The User interface was quite well 
 Patience.
 ## What's next for Judgify
 Expansion. Maybe a new API lol. 
+
+You be the judge, with the power of AI
